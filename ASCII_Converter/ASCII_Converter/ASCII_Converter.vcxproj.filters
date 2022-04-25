@@ -44,5 +44,8 @@
     <ClInclude Include="Include\Image.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Include\Utility.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

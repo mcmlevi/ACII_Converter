@@ -27,6 +27,7 @@
   <ItemGroup>
     <ClInclude Include="Include\Application.h" />
     <ClInclude Include="Include\Image.h" />
+    <ClInclude Include="Include\Utility.h" />
     <ClInclude Include="Libaries\stb_image.h" />
     <ClInclude Include="Libaries\stb_image_write.h" />
   </ItemGroup>
