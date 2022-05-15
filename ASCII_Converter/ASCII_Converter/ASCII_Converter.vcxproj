@@ -21,12 +21,15 @@
   <ItemGroup>
     <ClCompile Include="Source\Application.cpp" />
     <ClCompile Include="Source\Image.cpp" />
+    <ClCompile Include="Source\JobSystem.cpp" />
     <ClCompile Include="Source\main.cpp" />
     <ClCompile Include="stbiImageImplementation.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Include\Application.h" />
     <ClInclude Include="Include\Image.h" />
+    <ClInclude Include="Include\JobSystem.h" />
+    <ClInclude Include="Include\RingBuffer.h" />
     <ClInclude Include="Include\Utility.h" />
     <ClInclude Include="Libaries\stb_image.h" />
     <ClInclude Include="Libaries\stb_image_write.h" />

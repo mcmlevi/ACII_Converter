@@ -46,18 +46,18 @@ private:
 	void LoadFromDisk(const std::string& inPath, EChannels inChannel);
 	void SaveAnimatedGifToFile(const std::string& inExportPath) const;
 
-	void ProcessFrame(size_t& frame, std::ofstream& outfile, GifHeader& header) const;
+	void ProcessFrame(size_t frame, std::ofstream& outfile, const sul::dynamic_bitset<>& inBitfield) const;
 
 
 	void WriteGraphicControlExtention(size_t& frame, std::ofstream& outfile) const;
 	void WriteApplicationExentionBlock(std::ofstream& outfile) const;
 	void WriteImageDescriptor(std::ofstream& outfile) const;
-	void CompressAndSave(std::vector<int>& indexStream, size_t& frame, std::ofstream& outfile) const;
+	void Compress(std::vector<int>& indexStream, size_t frame, sul::dynamic_bitset<>& inBitField) const;
 
-	void SaveBitField(sul::dynamic_bitset<>& bitField, std::ofstream& outfile) const;
+	void SaveBitField(const sul::dynamic_bitset<>& bitField, std::ofstream& outfile) const;
 	void BuildBitField(std::vector<std::vector<int>> codeStreams, sul::dynamic_bitset<>& bitField) const;
 
-	std::vector<int> BuildIndexStream(size_t& frame, GifHeader& header) const;
+	std::vector<int> BuildIndexStream(const size_t& frame, GifHeader& header) const;
 
 	int32_t		mWidth;
 	int32_t		mHeight;
