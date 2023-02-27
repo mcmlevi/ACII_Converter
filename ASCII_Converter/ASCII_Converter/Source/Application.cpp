@@ -11,8 +11,7 @@ float Luminance(uint8_t* pixel)
 	return (pixel[0] * 0.3f) + (pixel[1] * 0.59f) + (pixel[2] * 0.11f);
 }
 
-// TODO profile
-// TODO speedup
+// TODO support timings
 // TODO Extract colors from gif
 // TODO Extract colors from image
 // TODO Support Transparency
@@ -25,9 +24,8 @@ namespace ASCII
 	{
 		JobSystem::Initialize();
 		int32_t ASCIISize = 16;
-		std::cin.get();
-		//Image gif("Assets/789839.gif");
-		Image gif("Assets/rick-roll.gif");
+		Image CopyBuffer(ASCIISize, ASCIISize);
+		Image gif("Assets/SomeFile.gif");
 		int FramesToRender = gif.GetFrames();
 		Image exportImage(gif.GetWidth() * ASCIISize, gif.GetHeight() * ASCIISize, Image::EChannels::RGB, FramesToRender);
 		exportImage.SetDelays(gif.GetDelays(), FramesToRender);
@@ -40,20 +38,43 @@ namespace ASCII
 			{
 				for (size_t x = 0; x < gif.GetWidth(); x++)
 				{
-					if(gif.GetChannels() == 4 && buffer[((y + frame * gif.GetHeight()) * gif.GetWidth() + x) * gif.GetChannels() + 3] < 255)
-						continue;
-					float luminance = Luminance(&buffer[((y + frame * gif.GetHeight()) * gif.GetWidth() + x) * gif.GetChannels()]);
-					int index = static_cast<int>(floorf(luminance / bucket));
-					unsigned char asciiChar = scale[index];
+					size_t index = ((y + frame * gif.GetHeight()) * gif.GetWidth() + x) * gif.GetChannels();
+
+					float luminance = Luminance(&buffer[index]);
+					int luminecenceIndex = static_cast<int>(floorf(luminance / bucket));
+					unsigned char asciiChar = scale[luminecenceIndex];
 					int yIndex = asciiChar / ASCIISize;
 					int xIndex = asciiChar % ASCIISize;
 
-					exportImage.CopyRect(mImageMap, xIndex * ASCIISize, yIndex * ASCIISize, x * ASCIISize, (y + frame * gif.GetHeight()) * ASCIISize, ASCIISize, ASCIISize);
+					CopyBuffer.CopyRect(mImageMap, xIndex * ASCIISize, yIndex * ASCIISize, 0, 0, ASCIISize, ASCIISize);
+					for (size_t CoppyBufferY = 0; CoppyBufferY < ASCIISize; CoppyBufferY++)
+					{
+						for (size_t CoppyBufferX = 0; CoppyBufferX < ASCIISize; CoppyBufferX++)
+						{
+							size_t copyBufferIndex = (CoppyBufferY * ASCIISize + CoppyBufferX) * CopyBuffer.GetChannels();
+							uint8_t* buffer = CopyBuffer.GetBuffer();
+							uint8_t R = buffer[copyBufferIndex];
+							uint8_t G = buffer[copyBufferIndex + 1];
+							uint8_t B = buffer[copyBufferIndex + 2];
+							if (R != 0 || G != 0 || B != 0)
+							{
+								CopyBuffer.GetBuffer()[copyBufferIndex] = gif.GetBuffer()[index];
+								CopyBuffer.GetBuffer()[copyBufferIndex + 1] = gif.GetBuffer()[index + 1];
+								CopyBuffer.GetBuffer()[copyBufferIndex + 2] = gif.GetBuffer()[index + 2];
+							}
+							else
+							{
+								CopyBuffer.GetBuffer()[copyBufferIndex] = gif.GetBuffer()[0];
+								CopyBuffer.GetBuffer()[copyBufferIndex + 1] = gif.GetBuffer()[1];
+								CopyBuffer.GetBuffer()[copyBufferIndex + 2] = gif.GetBuffer()[2];
+							}
+						}
+					
+					exportImage.CopyRect(CopyBuffer, 0, 0, x * ASCIISize, ((y * ASCIISize) + frame * exportImage.GetHeight()), ASCIISize, ASCIISize);
 				}
 			}
 		}
-		//gif.ExportImage("sampleTest.gif", Image::ExportAs::GIF, 100);
-		exportImage.ExportImage("Output/rick-roll.gif", Image::ExportAs::GIF, 100);
-		//exportImage.ExportImage("Output/Test.gif", Image::ExportAs::GIF, 100);
+		exportImage.BuildColorTable();
+		exportImage.ExportImage("Output/blob.gif", Image::ExportAs::GIF, 100);
 	}
 }

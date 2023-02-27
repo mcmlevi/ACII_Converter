@@ -15,10 +15,22 @@
 
 #include <iostream>
 
-#define USE_LZW_COMPRESSION 1
-
 namespace ASCII 
 {
+	size_t sHash(const std::vector<int>& inVecToHash, int inStart, int inEnd)
+	{
+		std::hash<int> hasher;
+		size_t result = 0;
+		for (size_t i = inStart; i < inEnd; ++i)
+			result ^= hasher(inVecToHash[i]) + 0x9e3779b9 + (result << 6) + (result >> 2);
+		return result;
+	}
+
+	size_t sCountBits(size_t number)
+	{
+		return (size_t)std::ceil(log2(number));
+	}
+
 	constexpr int masks[8]{ 0b0000'0001, 0b0000'0010, 0b0000'0100, 0b0000'1000, 0b0001'0000, 0b0010'0000, 0b0100'0000, 0b1000'0000 };
 	struct GraphicControlExtention
 	{
@@ -96,7 +108,7 @@ namespace ASCII
 		uint16_t mRight = 0x00;
 		uint16_t mWidth = 10;
 		uint16_t mheight = 10;
-		uint8_t	mPackedField = 0x00;
+		uint8_t	mPackedField = 0x91;
 	};
 
 	std::ostream& operator<<(std::ostream& os, const ImageDescriptor& inDescriptor)
@@ -117,11 +129,12 @@ namespace ASCII
 		uint8_t		mDesriptor[6]{'G','I','F','8','9','a'};
 		uint16_t	mWidth = 10;
 		uint16_t	mHeight = 10;
-		uint8_t		mPackedField = 0x91;
+		//uint8_t		mPackedField = 0x91;
+		uint8_t		mPackedField = 0;
 		uint8_t		mBackgroundColorIndex = 0;
 		uint8_t		mPixelAspectRatio = 0;
 		//std::vector<uint8_t> mColorTable;
-		uint8_t		mColorTable[12]{ 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00 }; // BLACK , RED, BLUE, WHITE
+		//uint8_t		mColorTable[12]{ 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00 }; // BLACK , RED, BLUE, WHITE
 	};
 
 	std::ostream& operator<<(std::ostream& os, const GifHeader& inHeader)
@@ -133,7 +146,7 @@ namespace ASCII
 		os.write((char*)&inHeader.mBackgroundColorIndex, 1);
 		os.write((char*)&inHeader.mPixelAspectRatio, 1);
 		//os.write((char*)inHeader.mColorTable.data(), inHeader.mColorTable.size());
-		os.write((char*)inHeader.mColorTable, 12);
+		//os.write((char*)inHeader.mColorTable, 12);
 		return os;
 	}
 
@@ -178,13 +191,10 @@ namespace ASCII
 			uint8_t* src = inSrc.mPixels + (inSrcX + (inSrcY + i) * inSrc.mWidth) * inSrc.mChannels;
 			memcpy(dest, src, bytesToCopy);
 		}
-	
-			
 	}
 
 	void Image::ExportImage(const std::string& inExportPath, ExportAs inExportAs, int Quality) const
 	{
-		// sizeof(uint8_t) * mWidth * mChannels
 		switch (inExportAs)
 		{
 		case ASCII::Image::ExportAs::PNG:
@@ -206,11 +216,14 @@ namespace ASCII
 		{
 			std::string buffer = ReadFileToBuffer(inPath);
 			char* packedField = buffer.data() + 10;
+
 			uint8_t colorResolutionFlag = 0b01110000;
 			uint8_t colorTableSizeFlag = 0b00000111;
 			int colorResolution = pow(2,(*packedField & colorResolutionFlag) >> 4);
 			int sizeOfColorTable = *packedField & colorTableSizeFlag;
+
 			mPixels = stbi_load_gif_from_memory((unsigned char*)buffer.c_str(), buffer.size(), &mDelays, &mWidth, &mHeight, &mFrames, &mChannels, mChannels);
+			BuildColorTable();
 		}
 		else
 		{
@@ -219,6 +232,30 @@ namespace ASCII
 		assert(mPixels != nullptr && "Image failed to load.");
 	}
 	
+	void Image::BuildColorTable()
+	{
+		mColorTableList.resize(mFrames);
+		for (size_t frame = 0; frame < mFrames; frame++)
+		{
+			int colorsFound = 0;
+			for (size_t y = 0; y < mHeight; y++)
+			{
+				for (size_t x = 0; x < mWidth; x++)
+				{
+					uint8_t* pixel = mPixels + ((y + frame * mHeight) * mWidth + x) * mChannels;
+					GifColor color{ pixel[0], pixel[1], pixel[2] };
+					size_t hash = std::hash<GifColor>{}(color);
+					auto it = mColorTableList[frame].find(hash);
+					if (it == mColorTableList[frame].end())
+					{
+						color.EntryIndex = colorsFound++;
+						mColorTableList[frame][hash] = color;
+					}
+				}
+			}
+		}
+	}
+
 	void Image::SaveAnimatedGifToFile(const std::string& inExportPath) const
 	{
 		std::ofstream outfile(inExportPath, std::ios::binary);
@@ -227,7 +264,7 @@ namespace ASCII
 		header.mHeight = mHeight;
 		outfile << header;
 		
-		const int maxJobSize = 18;
+		const int maxJobSize = 32;
 		std::atomic<int> jobCounter{};
 		int jobsLeft = mFrames;
 		int jobsStarted{};
@@ -240,7 +277,7 @@ namespace ASCII
 			{
 				JobSystem::Execute([&codeStreams, frame, jobsStarted, &header, this]()
 				{
-					std::vector<int> indexStream = BuildIndexStream(frame, header);
+					std::vector<int> indexStream = BuildIndexStream(frame + jobsStarted, header);
 					Compress(indexStream, frame + jobsStarted, codeStreams[frame]);
 				}, &jobCounter);
 			}
@@ -261,15 +298,29 @@ namespace ASCII
 		outfile.close();
 	}
 	
-	void Image::WriteImageDescriptor(std::ofstream& outfile) const
+	void Image::WriteImageDescriptor(size_t frame, std::ofstream& outfile) const
 	{
+		size_t bitsNeeded = sCountBits(mColorTableList[frame].size());
+		int entries = (int)pow(2, bitsNeeded);
+
 		ImageDescriptor desc;
 		desc.mWidth = mWidth;
 		desc.mheight = mHeight;
+		desc.mPackedField = 0;
+		desc.mPackedField |= 1 << 7;
+		desc.mPackedField |= (bitsNeeded - 1);
 		outfile << desc;
+		
+		std::vector<GifColor> colorsToPrint;
+		colorsToPrint.resize(entries);
+		for (const auto& it : mColorTableList[frame])
+			colorsToPrint[it.second.EntryIndex] = it.second;
+		
+		for (const auto& elem : colorsToPrint)
+			outfile << elem.R << elem.G << elem.B;
 	}
 	
-	std::vector<int> Image::BuildIndexStream(const size_t& frame, GifHeader& header) const
+	std::vector<int> Image::BuildIndexStream(size_t frame, GifHeader& header) const
 	{
 		std::vector<int> indexStream{};
 		for (int y = 0; y < mHeight; ++y)
@@ -277,38 +328,29 @@ namespace ASCII
 			for (int x = 0; x < mWidth; ++x)
 			{
 				size_t index = ((y + frame * mHeight) * mWidth + x) * mChannels;
-	
-				for (int i = 0; i < mChannels; ++i)
-					mPixels[index + i] = mPixels[index + i] < 122 ? 0 : 255;
-				if (mChannels == 4 && mPixels[index + 3] < 255)
-					indexStream.push_back(2);
-				else if (memcmp(&mPixels[index], &header.mColorTable[0], 3) == 0)
-					indexStream.push_back(0);
-				else if (memcmp(&mPixels[index], &header.mColorTable[3], 3) == 0)
-					indexStream.push_back(1);
-				else if (memcmp(&mPixels[index], &header.mColorTable[6], 3) == 0)
-					indexStream.push_back(2);
-				else
-					indexStream.push_back(3);
+				GifColor color{ mPixels[index], mPixels[index + 1], mPixels[index + 2] };
+				size_t hash = std::hash<GifColor>{}(color);
+				auto it = mColorTableList[frame].find(hash);
+
+				assert(it != mColorTableList[frame].end() && "hash not found in table");
+				indexStream.push_back(it->second.EntryIndex);
 			}
 		}
 		return indexStream;
 	}
-	
-	size_t sHash(const std::vector<int>& inVecToHash, int inStart, int inEnd)
-	{
-		std::hash<int> hasher;
-		size_t result = 0;
-		for (size_t i = inStart; i < inEnd; ++i)
-		{
-			result = result * 31 + hasher(inVecToHash[i]);
-		}
-		return result;
-	}
-	
+
 	void Image::Compress(std::vector<int>& indexStream, size_t frame, sul::dynamic_bitset<>& inBitField) const
 	{
-		std::vector<std::vector<int>> initialCodeTable{ { 0 },{ 1 },{ 2 },{ 3 },{ 4 },{ 5 } };
+		size_t lwzMinCodeSize = sCountBits(mColorTableList[frame].size());
+		int EOICode = pow(2, lwzMinCodeSize) + 1;
+		int clearClode = EOICode - 1;
+		std::vector<std::vector<int>> initialCodeTable{};
+		initialCodeTable.resize(EOICode + 1);
+		for (int i = 0 ; i <= EOICode; ++i)
+			initialCodeTable[i].push_back({i});
+		
+
+
 		std::unordered_map<size_t, int> codeTableMap;
 		auto resetCodeTableMap = [&codeTableMap, &initialCodeTable]()
 		{
@@ -321,11 +363,11 @@ namespace ASCII
 			}
 		};
 		resetCodeTableMap();
-		int codeSize = 3;
+		int codeSize = sCountBits(mColorTableList[frame].size()) + 1;
 		std::vector<int> indexBuffer{ indexStream.front() };
 		
 		for (int codePos = 0; codePos < codeSize; ++codePos)
-			inBitField.push_back(4 & (0b1 << codePos));
+			inBitField.push_back(clearClode & (0b1 << codePos));
 	
 		for (int i = 1; i < indexStream.size(); i++)
 		{
@@ -343,6 +385,10 @@ namespace ASCII
 				auto it = codeTableMap.insert({ indexBufferPlusKHash, (int)codeTableMap.size()});
 				
 				auto indexBufferEntry = codeTableMap.find(indexBufferHash);
+				//if (indexBufferEntry == codeTableMap.end())
+				//	codeTableMap[indexBufferHash] = (int)codeTableMap.size();
+
+				assert(indexBufferEntry != codeTableMap.end() && "Entry not found");
 				for (int codePos = 0; codePos < codeSize; ++codePos)
 					inBitField.push_back(indexBufferEntry->second & (0b1 << codePos));
 	
@@ -352,14 +398,12 @@ namespace ASCII
 				indexBuffer.clear();
 				indexBuffer.push_back(K);
 	
-				if (codeTableMap.size() == 0xFFF)
+				const int maxCodeSize = 12;
+				if (codeSize == maxCodeSize)
 				{
 					for (int codePos = 0; codePos < codeSize; ++codePos)
-						inBitField.push_back(5 & (0b1 << codePos));
-	
-					codeSize = 3;
-					for (int codePos = 0; codePos < codeSize; ++codePos)
-						inBitField.push_back(4 & (0b1 << codePos));
+						inBitField.push_back(clearClode & (0b1 << codePos));
+					codeSize = sCountBits(mColorTableList[frame].size()) + 1;
 	
 					resetCodeTableMap();
 				}
@@ -372,16 +416,17 @@ namespace ASCII
 			inBitField.push_back(indexBufferEntry->second & (0b1 << codePos));
 	
 		for (int codePos = 0; codePos < codeSize; ++codePos)
-			inBitField.push_back(5 & (0b1 << codePos));
+			inBitField.push_back(EOICode & (0b1 << codePos));
 	
 		int remainder{ inBitField.size() % 8 };
 		for (int i = 0; i < 8 - remainder; ++i)
 			inBitField.push_back(0);
 	}
 	
-	void Image::SaveBitField(const sul::dynamic_bitset<>& bitField, std::ofstream& outfile) const
+	void Image::SaveBitField(size_t frame, const sul::dynamic_bitset<>& bitField, std::ofstream& outfile) const
 	{
 		ImageData data;
+		data.mLZW = sCountBits(mColorTableList[frame].size());
 		int remainingSize = bitField.num_blocks();
 		int subBlocksBytesRead = 0;
 		do
@@ -403,52 +448,32 @@ namespace ASCII
 			for (int i = 0; i < 0xFF; ++i)
 			{
 				block.mData.push_back(*(bitField.data() + i + subBlocksBytesRead));
-		}
+			}
 			data.mBlocks.push_back(std::move(block));
 	
 			remainingSize -= 0xFF;
 			subBlocksBytesRead += 0xFF;
-		} while (remainingSize >= 0);
+		} while (remainingSize > 0);
 		outfile << data;
-	}
-	
-	void Image::BuildBitField(std::vector<std::vector<int>> codeStreams, sul::dynamic_bitset<>& bitField) const
-	{
-		for (const std::vector<int>& stream : codeStreams)
-		{
-			int codeSize = 3;
-			for (int i = 0; i < stream.size(); ++i)
-			{
-				for (int codePos = 0; codePos < codeSize; ++codePos)
-					bitField.push_back(stream[i] & (0b1 << codePos));
-	
-				if (stream[i] == pow(2, codeSize) - 1)
-					++codeSize;
-			}
-	
-			int remainder{ bitField.size() % 8 };
-			for (int i = 0; i < 8 - remainder; ++i)
-				bitField.push_back(0);
-		}
 	}
 
 	void Image::ProcessFrame(size_t frame, std::ofstream& outfile, const sul::dynamic_bitset<>& inBitfield) const
 	{
 		WriteApplicationExentionBlock(outfile);
-		WriteGraphicControlExtention(frame, outfile);
-		WriteImageDescriptor(outfile);
-		SaveBitField(inBitfield, outfile);
+		//WriteGraphicControlExtention(frame, outfile);
+		WriteImageDescriptor(frame, outfile);
+		SaveBitField(frame, inBitfield, outfile);
 	}
 
-	void Image::WriteGraphicControlExtention(size_t& frame, std::ofstream& outfile) const
+	void Image::WriteGraphicControlExtention(size_t frame, std::ofstream& outfile) const
 	{
 		GraphicControlExtention gce;
 		gce.mDelay = mDelays[frame] / 10;
-		if (mChannels == 4)
-		{
-			gce.mPackedField = 0b0000'0001;
-			gce.mTCI = 1;
-		}
+		//if (mChannels == 4)
+		//{
+		//	gce.mPackedField = 0b0000'0001;
+		//	gce.mTCI = 1;
+		//}
 
 		outfile << gce;
 	}
