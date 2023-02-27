@@ -74,8 +74,8 @@ namespace ASCII
 					}
 				}
 			}
-			exportImage.BuildColorTable();
-			exportImage.ExportImage("Output/blob.gif", Image::ExportAs::GIF, 100);
 		}
+		exportImage.BuildColorTable();
+		exportImage.ExportImage("Output/blob.gif", Image::ExportAs::GIF, 100);
 	};
 }

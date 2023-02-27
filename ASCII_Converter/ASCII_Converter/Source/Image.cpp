@@ -460,7 +460,7 @@ namespace ASCII
 	void Image::ProcessFrame(size_t frame, std::ofstream& outfile, const sul::dynamic_bitset<>& inBitfield) const
 	{
 		WriteApplicationExentionBlock(outfile);
-		//WriteGraphicControlExtention(frame, outfile);
+		WriteGraphicControlExtention(frame, outfile);
 		WriteImageDescriptor(frame, outfile);
 		SaveBitField(frame, inBitfield, outfile);
 	}
