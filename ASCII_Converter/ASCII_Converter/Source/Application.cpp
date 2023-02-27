@@ -25,7 +25,7 @@ namespace ASCII
 		JobSystem::Initialize();
 		int32_t ASCIISize = 16;
 		Image CopyBuffer(ASCIISize, ASCIISize);
-		Image gif("Assets/SomeFile.gif");
+		Image gif("Assets/blob.gif");
 		int FramesToRender = gif.GetFrames();
 		Image exportImage(gif.GetWidth() * ASCIISize, gif.GetHeight() * ASCIISize, Image::EChannels::RGB, FramesToRender);
 		exportImage.SetDelays(gif.GetDelays(), FramesToRender);
@@ -69,12 +69,13 @@ namespace ASCII
 								CopyBuffer.GetBuffer()[copyBufferIndex + 2] = gif.GetBuffer()[2];
 							}
 						}
-					
-					exportImage.CopyRect(CopyBuffer, 0, 0, x * ASCIISize, ((y * ASCIISize) + frame * exportImage.GetHeight()), ASCIISize, ASCIISize);
+
+						exportImage.CopyRect(CopyBuffer, 0, 0, x * ASCIISize, ((y * ASCIISize) + frame * exportImage.GetHeight()), ASCIISize, ASCIISize);
+					}
 				}
 			}
+			exportImage.BuildColorTable();
+			exportImage.ExportImage("Output/blob.gif", Image::ExportAs::GIF, 100);
 		}
-		exportImage.BuildColorTable();
-		exportImage.ExportImage("Output/blob.gif", Image::ExportAs::GIF, 100);
-	}
+	};
 }
