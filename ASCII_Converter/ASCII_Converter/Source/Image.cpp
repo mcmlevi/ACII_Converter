@@ -17,10 +17,10 @@
 
 namespace ASCII 
 {
-	size_t sHash(const std::vector<int>& inVecToHash, int inStart, int inEnd)
+	size_t sHash(const std::vector<int>& inVecToHash, int inStart, int inEnd, size_t initialHash = 0)
 	{
 		std::hash<int> hasher;
-		size_t result = 0;
+		size_t result = initialHash;
 		for (size_t i = inStart; i < inEnd; ++i)
 			result ^= hasher(inVecToHash[i]) + 0x9e3779b9 + (result << 6) + (result >> 2);
 		return result;
@@ -369,20 +369,27 @@ namespace ASCII
 		
 		for (int codePos = 0; codePos < codeSize; ++codePos)
 			inBitField.push_back(clearClode & (0b1 << codePos));
-	
+		
+		size_t previousIndexBufferHash = 0;
 		for (int i = 1; i < indexStream.size(); i++)
 		{
 			int K = indexStream[i];
 	
+			size_t startOffset = previousIndexBufferHash == 0 ? 0 : indexBuffer.size();
+			
 			indexBuffer.push_back(K);
-	
-			size_t indexBufferPlusKHash = sHash(indexBuffer, 0, indexBuffer.size());
+
+			size_t indexBufferPlusKHash = sHash(indexBuffer, startOffset, indexBuffer.size(), previousIndexBufferHash);
+
 			auto indexBufferEntry = codeTableMap.find(indexBufferPlusKHash);
 			bool isInCodeTable = indexBufferEntry != codeTableMap.end();
 	
 			if (!isInCodeTable)
 			{
-				size_t indexBufferHash = sHash(indexBuffer, 0, indexBuffer.size() - 1);
+				size_t indexBufferHash = previousIndexBufferHash;
+				if (indexBufferHash == 0)
+					indexBufferHash = sHash(indexBuffer, 0, indexBuffer.size() - 1);
+
 				auto it = codeTableMap.insert({ indexBufferPlusKHash, (int)codeTableMap.size()});
 				
 				auto indexBufferEntry = codeTableMap.find(indexBufferHash);
@@ -397,6 +404,7 @@ namespace ASCII
 					++codeSize;
 	
 				indexBuffer.clear();
+				previousIndexBufferHash = 0;
 				indexBuffer.push_back(K);
 	
 				const int maxCodeSize = 12;
@@ -408,6 +416,10 @@ namespace ASCII
 	
 					resetCodeTableMap();
 				}
+			}
+			else
+			{
+				previousIndexBufferHash = indexBufferPlusKHash;
 			}
 		}
 		
