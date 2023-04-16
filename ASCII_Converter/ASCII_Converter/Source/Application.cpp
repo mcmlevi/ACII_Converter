@@ -25,7 +25,7 @@ namespace ASCII
 		JobSystem::Initialize();
 		int32_t ASCIISize = 16;
 		Image CopyBuffer(ASCIISize, ASCIISize);
-		Image gif("Assets/blob.gif");
+		Image gif("Assets/nyan-cat.gif");
 		int FramesToRender = gif.GetFrames();
 		Image exportImage(gif.GetWidth() * ASCIISize, gif.GetHeight() * ASCIISize, Image::EChannels::RGB, FramesToRender);
 		exportImage.SetDelays(gif.GetDelays(), FramesToRender);
@@ -76,6 +76,6 @@ namespace ASCII
 			}
 		}
 		exportImage.BuildColorTable();
-		exportImage.ExportImage("Output/blob.gif", Image::ExportAs::GIF, 100);
+		exportImage.ExportImage("Output/ASCIInyan.gif", Image::ExportAs::GIF, 100);
 	};
 }

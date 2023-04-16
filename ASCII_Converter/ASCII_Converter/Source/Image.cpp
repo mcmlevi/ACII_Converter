@@ -323,6 +323,7 @@ namespace ASCII
 	std::vector<int> Image::BuildIndexStream(size_t frame, GifHeader& header) const
 	{
 		std::vector<int> indexStream{};
+		indexStream.reserve(mHeight * mWidth);
 		for (int y = 0; y < mHeight; ++y)
 		{
 			for (int x = 0; x < mWidth; ++x)
@@ -333,7 +334,7 @@ namespace ASCII
 				auto it = mColorTableList[frame].find(hash);
 
 				assert(it != mColorTableList[frame].end() && "hash not found in table");
-				indexStream.push_back(it->second.EntryIndex);
+				indexStream.emplace_back(it->second.EntryIndex);
 			}
 		}
 		return indexStream;
