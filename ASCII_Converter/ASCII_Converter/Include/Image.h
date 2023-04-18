@@ -53,6 +53,7 @@ public:
 	void ExportImage(const std::string& inExportPath, ExportAs inExportAs = ExportAs::JPG, int Quality = 100) const;
 	int32_t GetFrames() const { return mFrames; }
 	void BuildColorTable();
+	void SetColorTableFromImage(const Image& inOther);
 
 private:
 	void LoadFromDisk(const std::string& inPath, EChannels inChannel);
@@ -73,6 +74,7 @@ private:
 	std::vector<int> BuildIndexStream(size_t frame, GifHeader& header) const;
 	using ColorTable = std::unordered_map<size_t, GifColor>;
 	using ColorTableList = std::vector<ColorTable>;
+
 	int32_t		mWidth;
 	int32_t		mHeight;
 	int32_t		mChannels;

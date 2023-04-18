@@ -53,10 +53,10 @@ namespace ASCII
 						{
 							size_t copyBufferIndex = (CoppyBufferY * ASCIISize + CoppyBufferX) * CopyBuffer.GetChannels();
 							uint8_t* buffer = CopyBuffer.GetBuffer();
-							uint8_t R = buffer[copyBufferIndex];
-							uint8_t G = buffer[copyBufferIndex + 1];
-							uint8_t B = buffer[copyBufferIndex + 2];
-							if (R != 0 || G != 0 || B != 0)
+							const uint8_t R = buffer[copyBufferIndex];
+							const uint8_t G = buffer[copyBufferIndex + 1];
+							const uint8_t B = buffer[copyBufferIndex + 2];
+							if (R | G | B )
 							{
 								CopyBuffer.GetBuffer()[copyBufferIndex] = gif.GetBuffer()[index];
 								CopyBuffer.GetBuffer()[copyBufferIndex + 1] = gif.GetBuffer()[index + 1];
@@ -75,7 +75,8 @@ namespace ASCII
 				}
 			}
 		}
-		exportImage.BuildColorTable();
-		exportImage.ExportImage("Output/ASCIInyan.gif", Image::ExportAs::GIF, 100);
+		
+		exportImage.SetColorTableFromImage(gif);
+		exportImage.ExportImage("Output/test.gif", Image::ExportAs::GIF, 100);
 	};
 }

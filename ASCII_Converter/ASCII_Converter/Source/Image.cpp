@@ -183,7 +183,7 @@ namespace ASCII
 	{
 		// TODO figure out what to do with different channels
 		assert(mChannels == inSrc.mChannels && "Channels must match");
-		size_t bytesToCopy = (size_t)x * sizeof(uint8_t) * (size_t)mChannels;
+		const size_t bytesToCopy = (size_t)x * sizeof(uint8_t) * (size_t)mChannels;
 		
 		for (size_t i = 0; i < y; i++)
 		{
@@ -254,6 +254,11 @@ namespace ASCII
 				}
 			}
 		}
+	}
+
+	void Image::SetColorTableFromImage(const Image& inOther)
+	{
+		mColorTableList = inOther.mColorTableList;
 	}
 
 	void Image::SaveAnimatedGifToFile(const std::string& inExportPath) const
