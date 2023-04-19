@@ -27,14 +27,28 @@ namespace ASCII
 		Image CopyBuffer(ASCIISize, ASCIISize);
 		Image gif("Assets/nyan-cat.gif");
 		int FramesToRender = gif.GetFrames();
-		
-		uint8_t emptyColor[3]{ 0,0,0 };
-		const size_t colorSize = 3 * sizeof(uint8_t);
 
 		Image exportImage(gif.GetWidth() * ASCIISize, gif.GetHeight() * ASCIISize, Image::EChannels::RGB, FramesToRender);
 		exportImage.SetDelays(gif.GetDelays(), FramesToRender);
 
 		uint8_t* buffer = gif.GetBuffer();
+
+		const uint8_t backGroundColor[3]{ buffer[0], buffer[1], buffer[2] };
+		const uint8_t emptyColor[3]{ 0,0,0 };
+		const size_t colorSize = 3 * sizeof(uint8_t);
+
+		for (size_t y = 0; y < mImageMap.GetHeight(); y++)
+		{
+			for (size_t x = 0; x < mImageMap.GetWidth(); x++)
+			{
+				const size_t index = (y * mImageMap.GetWidth() + x) * mImageMap.GetChannels();
+				if (memcmp(emptyColor, mImageMap.GetBuffer() + index, colorSize) == 0)
+				{
+					memcpy(mImageMap.GetBuffer() + index, backGroundColor, colorSize);
+				}
+			}
+		}
+
 		float bucket = 255.f / static_cast<float>(scale.size());
 		for (size_t frame = 0; frame < FramesToRender; frame++)
 		{
@@ -42,7 +56,7 @@ namespace ASCII
 			{
 				for (size_t x = 0; x < gif.GetWidth(); x++)
 				{
-					size_t index = ((y + frame * gif.GetHeight()) * gif.GetWidth() + x) * gif.GetChannels();
+					const size_t index = ((y + frame * gif.GetHeight()) * gif.GetWidth() + x) * gif.GetChannels();
 
 					float luminance = Luminance(&buffer[index]);
 					int luminecenceIndex = static_cast<int>(floorf(luminance / bucket));
@@ -58,14 +72,8 @@ namespace ASCII
 							const size_t copyBufferIndex = (CoppyBufferY * ASCIISize + CoppyBufferX) * CopyBuffer.GetChannels();
 							uint8_t* Copybuffer = CopyBuffer.GetBuffer();
 							
-							if (memcmp(emptyColor, Copybuffer + copyBufferIndex, colorSize) == 0)
-							{
-								memcpy(Copybuffer + copyBufferIndex, buffer, colorSize);
-							}
-							else
-							{
+							if (memcmp(backGroundColor, Copybuffer + copyBufferIndex, colorSize) != 0)
 								memcpy(Copybuffer + copyBufferIndex, buffer + index, colorSize);
-							}
 						}
 
 						exportImage.CopyRect(CopyBuffer, 0, 0, x * ASCIISize, ((y * ASCIISize) + frame * exportImage.GetHeight()), ASCIISize, ASCIISize);
