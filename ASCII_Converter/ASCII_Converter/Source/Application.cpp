@@ -24,7 +24,6 @@ namespace ASCII
 	{
 		JobSystem::Initialize();
 		int32_t ASCIISize = 16;
-		Image CopyBuffer(ASCIISize, ASCIISize);
 		Image gif("Assets/nyan-cat.gif");
 		int FramesToRender = gif.GetFrames();
 
@@ -64,19 +63,19 @@ namespace ASCII
 					int yIndex = asciiChar / ASCIISize;
 					int xIndex = asciiChar % ASCIISize;
 
-					CopyBuffer.CopyRect(mImageMap, xIndex * ASCIISize, yIndex * ASCIISize, 0, 0, ASCIISize, ASCIISize);
+					exportImage.CopyRect(mImageMap, xIndex * ASCIISize, yIndex * ASCIISize, x * ASCIISize, y * ASCIISize + frame * exportImage.GetHeight(), ASCIISize, ASCIISize);
+
+					const size_t yOffset = y * ASCIISize + frame * exportImage.GetHeight();
+
 					for (size_t CoppyBufferY = 0; CoppyBufferY < ASCIISize; CoppyBufferY++)
 					{
 						for (size_t CoppyBufferX = 0; CoppyBufferX < ASCIISize; CoppyBufferX++)
 						{
-							const size_t copyBufferIndex = (CoppyBufferY * ASCIISize + CoppyBufferX) * CopyBuffer.GetChannels();
-							uint8_t* Copybuffer = CopyBuffer.GetBuffer();
+							const size_t copyBufferindex = (( yOffset + CoppyBufferY) * exportImage.GetWidth() + x * ASCIISize + CoppyBufferX) * exportImage.GetChannels();
 							
-							if (memcmp(backGroundColor, Copybuffer + copyBufferIndex, colorSize) != 0)
-								memcpy(Copybuffer + copyBufferIndex, buffer + index, colorSize);
+							if (memcmp(backGroundColor, exportImage.GetBuffer() + copyBufferindex, colorSize) != 0)
+								memcpy(exportImage.GetBuffer() + copyBufferindex, buffer + index, colorSize);
 						}
-
-						exportImage.CopyRect(CopyBuffer, 0, 0, x * ASCIISize, ((y * ASCIISize) + frame * exportImage.GetHeight()), ASCIISize, ASCIISize);
 					}
 				}
 			}
