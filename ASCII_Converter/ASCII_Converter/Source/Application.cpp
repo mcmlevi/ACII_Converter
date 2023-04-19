@@ -66,12 +66,13 @@ namespace ASCII
 					exportImage.CopyRect(mImageMap, xIndex * ASCIISize, yIndex * ASCIISize, x * ASCIISize, y * ASCIISize + frame * exportImage.GetHeight(), ASCIISize, ASCIISize);
 
 					const size_t yOffset = y * ASCIISize + frame * exportImage.GetHeight();
+					const size_t xOffset = x * ASCIISize;
 
 					for (size_t CoppyBufferY = 0; CoppyBufferY < ASCIISize; CoppyBufferY++)
 					{
 						for (size_t CoppyBufferX = 0; CoppyBufferX < ASCIISize; CoppyBufferX++)
 						{
-							const size_t copyBufferindex = (( yOffset + CoppyBufferY) * exportImage.GetWidth() + x * ASCIISize + CoppyBufferX) * exportImage.GetChannels();
+							const size_t copyBufferindex = (( yOffset + CoppyBufferY) * exportImage.GetWidth() + xOffset + CoppyBufferX) * exportImage.GetChannels();
 							
 							if (memcmp(backGroundColor, exportImage.GetBuffer() + copyBufferindex, colorSize) != 0)
 								memcpy(exportImage.GetBuffer() + copyBufferindex, buffer + index, colorSize);

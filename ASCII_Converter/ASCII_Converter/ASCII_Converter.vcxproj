@@ -30,6 +30,7 @@
     <ClInclude Include="Include\Image.h" />
     <ClInclude Include="Include\JobSystem.h" />
     <ClInclude Include="Include\RingBuffer.h" />
+    <ClInclude Include="Include\robin_hood.h" />
     <ClInclude Include="Include\Utility.h" />
     <ClInclude Include="Libaries\stb_image.h" />
     <ClInclude Include="Libaries\stb_image_write.h" />
@@ -150,6 +151,8 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir)Include;$(ProjectDir)Libaries;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

@@ -4,6 +4,7 @@
 #include "dynamic_bitset.hpp"
 #include <type_traits>
 #include <functional>
+#include "robin_hood.h"
 
 namespace ASCII
 {
@@ -29,12 +30,9 @@ public:
 		JPG
 	};
 
-	struct GifColor
+	struct ImageHash
 	{
-		uint8_t R = 0;
-		uint8_t G = 0;
-		uint8_t B = 0;
-		int EntryIndex;
+		uint32_t Hash;
 	};
 
 	Image(const std::string& inPath, EChannels inChannel = EChannels::UseImageData);
@@ -56,8 +54,17 @@ public:
 	void SetColorTableFromImage(const Image& inOther);
 
 private:
-	void LoadFromDisk(const std::string& inPath, EChannels inChannel);
 
+	struct ImageHashEqual
+	{
+		bool operator()(const ImageHash& a, const ImageHash& b) const
+		{
+			return (a.Hash & 0x00FFFFFF) == (b.Hash & 0x00FFFFFF);
+		};
+	};
+
+
+	void LoadFromDisk(const std::string& inPath, EChannels inChannel);
 
 	void SaveAnimatedGifToFile(const std::string& inExportPath) const;
 
@@ -67,12 +74,12 @@ private:
 	void WriteGraphicControlExtention(size_t frame, std::ofstream& outfile) const;
 	void WriteApplicationExentionBlock(std::ofstream& outfile) const;
 	void WriteImageDescriptor(size_t frame, std::ofstream& outfile) const;
-	void Compress(std::vector<int>& indexStream, size_t frame, sul::dynamic_bitset<>& inBitField) const;
+	void Compress(std::vector<uint8_t>& indexStream, size_t frame, sul::dynamic_bitset<>& inBitField) const;
 
 	void SaveBitField(size_t frame, const sul::dynamic_bitset<>& bitField, std::ofstream& outfile) const;
 
-	std::vector<int> BuildIndexStream(size_t frame, GifHeader& header) const;
-	using ColorTable = std::unordered_map<size_t, GifColor>;
+	std::vector<uint8_t> BuildIndexStream(size_t frame, GifHeader& header) const;
+	using ColorTable = robin_hood::unordered_set<ImageHash, std::hash<ImageHash>, ImageHashEqual>;
 	using ColorTableList = std::vector<ColorTable>;
 
 	int32_t		mWidth;
@@ -86,13 +93,10 @@ private:
 }
 
 template<>
-struct std::hash<ASCII::Image::GifColor>
+struct std::hash<ASCII::Image::ImageHash>
 {
-	std::size_t operator()(ASCII::Image::GifColor const& gifColor) const noexcept
+	std::size_t operator()(const ASCII::Image::ImageHash& inImageHash) const noexcept
 	{
-		std::size_t h1 = ((size_t)gifColor.R << 16);
-		std::size_t h2 = ((size_t)gifColor.G << 8);
-		std::size_t h3 = gifColor.B;
-		return h1 | h2 | h3;
+		return inImageHash.Hash & 0x00FFFFFF;
 	}
 };

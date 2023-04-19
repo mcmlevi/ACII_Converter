@@ -14,9 +14,19 @@
 #include <bitset>
 
 #include <iostream>
+#include <algorithm>
 
 namespace ASCII 
 {
+	size_t sHash(const std::vector<uint8_t>& inVecToHash, int inStart, int inEnd, size_t initialHash = 0)
+	{
+		std::hash<int> hasher;
+		size_t result = initialHash;
+		for (size_t i = inStart; i < inEnd; ++i)
+			result ^= hasher(inVecToHash[i]) + 0x9e3779b9 + (result << 6) + (result >> 2);
+		return result;
+	}
+
 	size_t sHash(const std::vector<int>& inVecToHash, int inStart, int inEnd, size_t initialHash = 0)
 	{
 		std::hash<int> hasher;
@@ -24,6 +34,11 @@ namespace ASCII
 		for (size_t i = inStart; i < inEnd; ++i)
 			result ^= hasher(inVecToHash[i]) + 0x9e3779b9 + (result << 6) + (result >> 2);
 		return result;
+	}
+
+	ASCII::Image::ImageHash sGenerateImageHash(const uint8_t* inBuffer, uint8_t inIndex = 0) 
+	{
+		return { static_cast<uint32_t>(inIndex) << 24 | static_cast<uint32_t>(inBuffer[0] << 16) | static_cast<uint32_t>(inBuffer[1]) << 8 | static_cast<uint32_t>(inBuffer[2]) };
 	}
 
 	size_t sCountBits(size_t number)
@@ -243,13 +258,12 @@ namespace ASCII
 				for (size_t x = 0; x < mWidth; x++)
 				{
 					uint8_t* pixel = mPixels + ((y + frame * mHeight) * mWidth + x) * mChannels;
-					GifColor color{ pixel[0], pixel[1], pixel[2] };
-					size_t hash = std::hash<GifColor>{}(color);
+					const ImageHash hash = sGenerateImageHash(pixel, colorsFound);
 					auto it = mColorTableList[frame].find(hash);
 					if (it == mColorTableList[frame].end())
 					{
-						color.EntryIndex = colorsFound++;
-						mColorTableList[frame][hash] = color;
+						mColorTableList[frame].insert(hash);
+						++colorsFound;
 					}
 				}
 			}
@@ -282,7 +296,7 @@ namespace ASCII
 			{
 				JobSystem::Execute([&codeStreams, frame, jobsStarted, &header, this]()
 				{
-					std::vector<int> indexStream = BuildIndexStream(frame + jobsStarted, header);
+					std::vector<uint8_t> indexStream = BuildIndexStream(frame + jobsStarted, header);
 					Compress(indexStream, frame + jobsStarted, codeStreams[frame]);
 				}, &jobCounter);
 			}
@@ -316,36 +330,37 @@ namespace ASCII
 		desc.mPackedField |= (bitsNeeded - 1);
 		outfile << desc;
 		
-		std::vector<GifColor> colorsToPrint;
+		std::vector<uint32_t> colorsToPrint;
 		colorsToPrint.resize(entries);
 		for (const auto& it : mColorTableList[frame])
-			colorsToPrint[it.second.EntryIndex] = it.second;
+			colorsToPrint[(it.Hash & 0xFF000000) >> 24] = it.Hash;
 		
 		for (const auto& elem : colorsToPrint)
-			outfile << elem.R << elem.G << elem.B;
+			outfile << static_cast<uint8_t>((elem & 0x00FF0000) >> 16) << static_cast<uint8_t>((elem & 0x0000FF00) >> 8) << static_cast<uint8_t>((elem & 0x000000FF));
 	}
 	
-	std::vector<int> Image::BuildIndexStream(size_t frame, GifHeader& header) const
+	std::vector<uint8_t> Image::BuildIndexStream(size_t frame, GifHeader& header) const
 	{
-		std::vector<int> indexStream{};
-		indexStream.reserve(mHeight * mWidth);
+		std::vector<uint8_t> indexStream{};
+		indexStream.resize(mHeight * mWidth);
+
 		for (int y = 0; y < mHeight; ++y)
 		{
 			for (int x = 0; x < mWidth; ++x)
 			{
-				size_t index = ((y + frame * mHeight) * mWidth + x) * mChannels;
-				GifColor color{ mPixels[index], mPixels[index + 1], mPixels[index + 2] };
-				size_t hash = std::hash<GifColor>{}(color);
-				auto it = mColorTableList[frame].find(hash);
+				const size_t index = ((y + frame * mHeight) * mWidth + x) * mChannels;
+				const ImageHash hash = sGenerateImageHash(mPixels + index);
+
+				auto it = mColorTableList[frame].find({hash});
 
 				assert(it != mColorTableList[frame].end() && "hash not found in table");
-				indexStream.emplace_back(it->second.EntryIndex);
+				indexStream[y * mWidth + x] = (it->Hash & 0xFF000000) >> 24;
 			}
 		}
 		return indexStream;
 	}
 
-	void Image::Compress(std::vector<int>& indexStream, size_t frame, sul::dynamic_bitset<>& inBitField) const
+	void Image::Compress(std::vector<uint8_t>& indexStream, size_t frame, sul::dynamic_bitset<>& inBitField) const
 	{
 		size_t lwzMinCodeSize = sCountBits(mColorTableList[frame].size());
 		int EOICode = pow(2, lwzMinCodeSize) + 1;
@@ -357,7 +372,7 @@ namespace ASCII
 		
 
 
-		std::unordered_map<size_t, int> codeTableMap;
+		robin_hood::unordered_map<size_t, int> codeTableMap;
 		auto resetCodeTableMap = [&codeTableMap, &initialCodeTable]()
 		{
 			codeTableMap.clear();
@@ -370,7 +385,7 @@ namespace ASCII
 		};
 		resetCodeTableMap();
 		int codeSize = sCountBits(mColorTableList[frame].size()) + 1;
-		std::vector<int> indexBuffer{ indexStream.front() };
+		std::vector<uint8_t> indexBuffer{ indexStream.front() };
 		
 		for (int codePos = 0; codePos < codeSize; ++codePos)
 			inBitField.push_back(clearClode & (0b1 << codePos));
