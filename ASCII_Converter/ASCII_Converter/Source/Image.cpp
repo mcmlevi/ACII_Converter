@@ -177,8 +177,8 @@ namespace ASCII
 		if (mCurrentIndex >= mImage.mHeight * mImage.mWidth)
 			return false;
 
-		size_t y = mCurrentIndex / mImage.mWidth;
-		size_t x = mCurrentIndex % mImage.mWidth;
+		const size_t y = mCurrentIndex / mImage.mWidth;
+		const size_t x = mCurrentIndex % mImage.mWidth;
 		
 		++mCurrentIndex;
 
@@ -186,6 +186,7 @@ namespace ASCII
 		const ImageHash hash = sGenerateImageHash(mImage.mPixels + index);
 
 		auto it = mImage.mColorTableList[mFrame].find({ hash });
+
 		assert(it != mImage.mColorTableList[mFrame].end() && "hash not found in table");
 		
 		outNext =  (it->Hash & 0xFF000000) >> 24;
@@ -263,8 +264,6 @@ namespace ASCII
 
 			uint8_t colorResolutionFlag = 0b01110000;
 			uint8_t colorTableSizeFlag = 0b00000111;
-			int colorResolution = pow(2,(*packedField & colorResolutionFlag) >> 4);
-			int sizeOfColorTable = *packedField & colorTableSizeFlag;
 
 			mPixels = stbi_load_gif_from_memory((unsigned char*)buffer.c_str(), buffer.size(), &mDelays, &mWidth, &mHeight, &mFrames, &mChannels, mChannels);
 			BuildColorTable();
@@ -348,7 +347,7 @@ namespace ASCII
 	void Image::WriteImageDescriptor(size_t frame, std::ofstream& outfile) const
 	{
 		size_t bitsNeeded = sCountBits(mColorTableList[frame].size());
-		int entries = (int)pow(2, bitsNeeded);
+		int entries = static_cast<int>(1 << bitsNeeded);
 
 		ImageDescriptor desc;
 		desc.mWidth = mWidth;
@@ -369,8 +368,8 @@ namespace ASCII
 
 	void Image::Compress(size_t frame, sul::dynamic_bitset<>& inBitField) const
 	{
-		size_t lwzMinCodeSize = sCountBits(mColorTableList[frame].size());
-		int EOICode = pow(2, lwzMinCodeSize) + 1;
+		const size_t lwzMinCodeSize = sCountBits(mColorTableList[frame].size());
+		int EOICode = (1 << lwzMinCodeSize) + 1;
 		int clearClode = EOICode - 1;
 		std::vector<std::vector<int>> initialCodeTable{};
 		initialCodeTable.resize(EOICode + 1);
@@ -432,7 +431,7 @@ namespace ASCII
 				for (int codePos = 0; codePos < codeSize; ++codePos)
 					inBitField.push_back(indexBufferEntry->second & (0b1 << codePos));
 	
-				if (codeTableMap.size() > pow(2, codeSize))
+				if (codeTableMap.size() > (1 << codeSize))
 					++codeSize;
 	
 				indexBuffer.clear();
