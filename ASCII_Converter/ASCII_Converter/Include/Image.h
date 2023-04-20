@@ -74,11 +74,24 @@ private:
 	void WriteGraphicControlExtention(size_t frame, std::ofstream& outfile) const;
 	void WriteApplicationExentionBlock(std::ofstream& outfile) const;
 	void WriteImageDescriptor(size_t frame, std::ofstream& outfile) const;
-	void Compress(std::vector<uint8_t>& indexStream, size_t frame, sul::dynamic_bitset<>& inBitField) const;
+	void Compress(size_t frame, sul::dynamic_bitset<>& inBitField) const;
 
 	void SaveBitField(size_t frame, const sul::dynamic_bitset<>& bitField, std::ofstream& outfile) const;
 
-	std::vector<uint8_t> BuildIndexStream(size_t frame, GifHeader& header) const;
+
+	class IndexStreamGenerator final
+	{
+	public:
+		IndexStreamGenerator(const Image& inImage, int inFrame);
+
+		bool Next(uint8_t& outNext);
+
+	private:
+		const Image&	mImage;
+		const int		mFrame;
+		size_t			mCurrentIndex = 0;
+	};
+	
 	using ColorTable = robin_hood::unordered_set<ImageHash, std::hash<ImageHash>, ImageHashEqual>;
 	using ColorTableList = std::vector<ColorTable>;
 

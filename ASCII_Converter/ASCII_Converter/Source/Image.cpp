@@ -165,6 +165,35 @@ namespace ASCII
 		return os;
 	}
 
+	//////////////////////////////////////////////////////////////////////////
+	
+	Image::IndexStreamGenerator::IndexStreamGenerator(const Image& inImage, int inFrame):
+		mImage(inImage), mFrame(inFrame)
+	{
+	}
+
+	bool Image::IndexStreamGenerator::Next(uint8_t& outNext)
+	{
+		if (mCurrentIndex >= mImage.mHeight * mImage.mWidth)
+			return false;
+
+		size_t y = mCurrentIndex / mImage.mWidth;
+		size_t x = mCurrentIndex % mImage.mWidth;
+		
+		++mCurrentIndex;
+
+		const size_t index = ((y + mFrame * mImage.mHeight) * mImage.mWidth + x) * mImage.mChannels;
+		const ImageHash hash = sGenerateImageHash(mImage.mPixels + index);
+
+		auto it = mImage.mColorTableList[mFrame].find({ hash });
+		assert(it != mImage.mColorTableList[mFrame].end() && "hash not found in table");
+		
+		outNext =  (it->Hash & 0xFF000000) >> 24;
+		return true;
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+
 	Image::Image(const std::string& inPath, EChannels inChannel) :
 		mChannels{ static_cast<int>(inChannel) }
 	{
@@ -296,8 +325,7 @@ namespace ASCII
 			{
 				JobSystem::Execute([&codeStreams, frame, jobsStarted, &header, this]()
 				{
-					std::vector<uint8_t> indexStream = BuildIndexStream(frame + jobsStarted, header);
-					Compress(indexStream, frame + jobsStarted, codeStreams[frame]);
+					Compress(frame + jobsStarted, codeStreams[frame]);
 				}, &jobCounter);
 			}
 
@@ -338,29 +366,8 @@ namespace ASCII
 		for (const auto& elem : colorsToPrint)
 			outfile << static_cast<uint8_t>((elem & 0x00FF0000) >> 16) << static_cast<uint8_t>((elem & 0x0000FF00) >> 8) << static_cast<uint8_t>((elem & 0x000000FF));
 	}
-	
-	std::vector<uint8_t> Image::BuildIndexStream(size_t frame, GifHeader& header) const
-	{
-		std::vector<uint8_t> indexStream{};
-		indexStream.resize(mHeight * mWidth);
 
-		for (int y = 0; y < mHeight; ++y)
-		{
-			for (int x = 0; x < mWidth; ++x)
-			{
-				const size_t index = ((y + frame * mHeight) * mWidth + x) * mChannels;
-				const ImageHash hash = sGenerateImageHash(mPixels + index);
-
-				auto it = mColorTableList[frame].find({hash});
-
-				assert(it != mColorTableList[frame].end() && "hash not found in table");
-				indexStream[y * mWidth + x] = (it->Hash & 0xFF000000) >> 24;
-			}
-		}
-		return indexStream;
-	}
-
-	void Image::Compress(std::vector<uint8_t>& indexStream, size_t frame, sul::dynamic_bitset<>& inBitField) const
+	void Image::Compress(size_t frame, sul::dynamic_bitset<>& inBitField) const
 	{
 		size_t lwzMinCodeSize = sCountBits(mColorTableList[frame].size());
 		int EOICode = pow(2, lwzMinCodeSize) + 1;
@@ -369,8 +376,6 @@ namespace ASCII
 		initialCodeTable.resize(EOICode + 1);
 		for (int i = 0 ; i <= EOICode; ++i)
 			initialCodeTable[i].push_back({i});
-		
-
 
 		robin_hood::unordered_map<size_t, int> codeTableMap;
 		auto resetCodeTableMap = [&codeTableMap, &initialCodeTable]()
@@ -383,17 +388,24 @@ namespace ASCII
 				codeTableMap[hash] = index++;
 			}
 		};
+
 		resetCodeTableMap();
 		int codeSize = sCountBits(mColorTableList[frame].size()) + 1;
-		std::vector<uint8_t> indexBuffer{ indexStream.front() };
+		
+		IndexStreamGenerator indexGenerator(*this, frame);
+		
+		uint8_t currentIndexStreamItem = 0;
+		indexGenerator.Next(currentIndexStreamItem);
+
+		std::vector<uint8_t> indexBuffer{ currentIndexStreamItem };
 		
 		for (int codePos = 0; codePos < codeSize; ++codePos)
 			inBitField.push_back(clearClode & (0b1 << codePos));
 		
 		size_t previousIndexBufferHash = 0;
-		for (int i = 1; i < indexStream.size(); i++)
+		while(indexGenerator.Next(currentIndexStreamItem))
 		{
-			int K = indexStream[i];
+			const int K = currentIndexStreamItem;
 	
 			size_t startOffset = previousIndexBufferHash == 0 ? 0 : indexBuffer.size();
 			
