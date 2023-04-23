@@ -57,25 +57,33 @@ namespace ASCII
 				{
 					const size_t index = ((y + frame * gif.GetHeight()) * gif.GetWidth() + x) * gif.GetChannels();
 
-					float luminance = Luminance(&buffer[index]);
-					int luminecenceIndex = static_cast<int>(floorf(luminance / bucket));
-					unsigned char asciiChar = scale[luminecenceIndex];
-					int yIndex = asciiChar / ASCIISize;
-					int xIndex = asciiChar % ASCIISize;
-
-					exportImage.CopyRect(mImageMap, xIndex * ASCIISize, yIndex * ASCIISize, x * ASCIISize, y * ASCIISize + frame * exportImage.GetHeight(), ASCIISize, ASCIISize);
-
-					const size_t yOffset = y * ASCIISize + frame * exportImage.GetHeight();
-					const size_t xOffset = x * ASCIISize;
-
-					for (size_t CoppyBufferY = 0; CoppyBufferY < ASCIISize; CoppyBufferY++)
+					// if it's the background color we can use ASCII char 0 to copy a square of the full background color
+					if(memcmp(backGroundColor, buffer + index, colorSize) == 0)
 					{
-						for (size_t CoppyBufferX = 0; CoppyBufferX < ASCIISize; CoppyBufferX++)
+						exportImage.CopyRect(mImageMap, 0, 0, x * ASCIISize, y * ASCIISize + frame * exportImage.GetHeight(), ASCIISize, ASCIISize);
+					}
+					else
+					{
+						float luminance = Luminance(&buffer[index]);
+						int luminecenceIndex = std::min(static_cast<int>(floorf(luminance / bucket)), static_cast<int>(scale.size() - 1));
+						unsigned char asciiChar = scale[luminecenceIndex];
+						int yIndex = asciiChar / ASCIISize;
+						int xIndex = asciiChar % ASCIISize;
+
+						exportImage.CopyRect(mImageMap, xIndex * ASCIISize, yIndex * ASCIISize, x * ASCIISize, y * ASCIISize + frame * exportImage.GetHeight(), ASCIISize, ASCIISize);
+
+						const size_t yOffset = y * ASCIISize + frame * exportImage.GetHeight();
+						const size_t xOffset = x * ASCIISize;
+
+						for (size_t CoppyBufferY = 0; CoppyBufferY < ASCIISize; CoppyBufferY++)
 						{
-							const size_t copyBufferindex = (( yOffset + CoppyBufferY) * exportImage.GetWidth() + xOffset + CoppyBufferX) * exportImage.GetChannels();
-							
-							if (memcmp(backGroundColor, exportImage.GetBuffer() + copyBufferindex, colorSize) != 0)
-								memcpy(exportImage.GetBuffer() + copyBufferindex, buffer + index, colorSize);
+							for (size_t CoppyBufferX = 0; CoppyBufferX < ASCIISize; CoppyBufferX++)
+							{
+								const size_t copyBufferindex = ((yOffset + CoppyBufferY) * exportImage.GetWidth() + xOffset + CoppyBufferX) * exportImage.GetChannels();
+
+								if (memcmp(backGroundColor, exportImage.GetBuffer() + copyBufferindex, colorSize) != 0)
+									memcpy(exportImage.GetBuffer() + copyBufferindex, buffer + index, colorSize);
+							}
 						}
 					}
 				}
