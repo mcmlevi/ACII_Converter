@@ -65,7 +65,7 @@ namespace ASCII
 					else
 					{
 						float luminance = Luminance(&buffer[index]);
-						int luminecenceIndex = static_cast<int>(floorf(luminance / bucket));
+						int luminecenceIndex = std::min(static_cast<int>(floorf(luminance / bucket)), static_cast<int>(scale.size() - 1));
 						unsigned char asciiChar = scale[luminecenceIndex];
 						int yIndex = asciiChar / ASCIISize;
 						int xIndex = asciiChar % ASCIISize;
