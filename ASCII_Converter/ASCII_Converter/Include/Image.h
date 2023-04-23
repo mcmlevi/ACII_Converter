@@ -90,6 +90,7 @@ private:
 		const Image&	mImage;
 		const size_t	mFrame;
 		size_t			mCurrentIndex = 0;
+		size_t			mTerminationValue;
 	};
 	
 	using ColorTable = robin_hood::unordered_set<ImageHash, std::hash<ImageHash>, ImageHashEqual>;

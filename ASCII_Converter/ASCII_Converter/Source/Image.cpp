@@ -168,22 +168,18 @@ namespace ASCII
 	//////////////////////////////////////////////////////////////////////////
 	
 	Image::IndexStreamGenerator::IndexStreamGenerator(const Image& inImage, size_t inFrame):
-		mImage(inImage), mFrame(inFrame)
+		mImage(inImage), mFrame(inFrame), mCurrentIndex(inFrame * inImage.GetHeight() * inImage.GetWidth() * mImage.GetChannels()), mTerminationValue(mCurrentIndex + inImage.mWidth * inImage.GetHeight() * inImage.mChannels)
 	{
 	}
 
 	bool Image::IndexStreamGenerator::Next(uint8_t& outNext)
 	{
-		if (mCurrentIndex >= mImage.mHeight * mImage.mWidth)
+		if (mCurrentIndex >= mTerminationValue)
 			return false;
 
-		const size_t y = mCurrentIndex / mImage.mWidth;
-		const size_t x = mCurrentIndex % mImage.mWidth;
-		
-		++mCurrentIndex;
+		const ImageHash hash = sGenerateImageHash(mImage.mPixels + mCurrentIndex);
 
-		const size_t index = ((y + mFrame * mImage.mHeight) * mImage.mWidth + x) * mImage.mChannels;
-		const ImageHash hash = sGenerateImageHash(mImage.mPixels + index);
+		mCurrentIndex += mImage.GetChannels();
 
 		auto it = mImage.mColorTableList[mFrame].find({ hash });
 
