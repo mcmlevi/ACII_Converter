@@ -49,11 +49,11 @@ namespace ASCII
 		}
 
 		float bucket = 255.f / static_cast<float>(scale.size());
-		for (size_t frame = 0; frame < FramesToRender; frame++)
+		for (int frame = 0; frame < FramesToRender; frame++)
 		{
-			for (size_t y = 0; y < gif.GetHeight(); y++)
+			for (int y = 0; y < gif.GetHeight(); y++)
 			{
-				for (size_t x = 0; x < gif.GetWidth(); x++)
+				for (int x = 0; x < gif.GetWidth(); x++)
 				{
 					const size_t index = ((y + frame * gif.GetHeight()) * gif.GetWidth() + x) * gif.GetChannels();
 

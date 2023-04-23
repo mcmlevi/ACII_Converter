@@ -18,7 +18,7 @@
 
 namespace ASCII 
 {
-	size_t sHash(const std::vector<uint8_t>& inVecToHash, int inStart, int inEnd, size_t initialHash = 0)
+	size_t sHash(const std::vector<uint8_t>& inVecToHash, size_t inStart, size_t inEnd, size_t initialHash = 0)
 	{
 		std::hash<int> hasher;
 		size_t result = initialHash;
@@ -27,7 +27,7 @@ namespace ASCII
 		return result;
 	}
 
-	size_t sHash(const std::vector<int>& inVecToHash, int inStart, int inEnd, size_t initialHash = 0)
+	size_t sHash(const std::vector<int>& inVecToHash, size_t inStart, size_t inEnd, size_t initialHash = 0)
 	{
 		std::hash<int> hasher;
 		size_t result = initialHash;
@@ -41,9 +41,9 @@ namespace ASCII
 		return { static_cast<uint32_t>(inIndex) << 24 | static_cast<uint32_t>(inBuffer[0] << 16) | static_cast<uint32_t>(inBuffer[1]) << 8 | static_cast<uint32_t>(inBuffer[2]) };
 	}
 
-	size_t sCountBits(size_t number)
+	uint8_t sCountBits(size_t number)
 	{
-		return (size_t)std::ceil(log2(number));
+		return (uint8_t)std::ceil(log2(number));
 	}
 
 	constexpr int masks[8]{ 0b0000'0001, 0b0000'0010, 0b0000'0100, 0b0000'1000, 0b0001'0000, 0b0010'0000, 0b0100'0000, 0b1000'0000 };
@@ -167,7 +167,7 @@ namespace ASCII
 
 	//////////////////////////////////////////////////////////////////////////
 	
-	Image::IndexStreamGenerator::IndexStreamGenerator(const Image& inImage, int inFrame):
+	Image::IndexStreamGenerator::IndexStreamGenerator(const Image& inImage, size_t inFrame):
 		mImage(inImage), mFrame(inFrame)
 	{
 	}
@@ -265,7 +265,7 @@ namespace ASCII
 			uint8_t colorResolutionFlag = 0b01110000;
 			uint8_t colorTableSizeFlag = 0b00000111;
 
-			mPixels = stbi_load_gif_from_memory((unsigned char*)buffer.c_str(), buffer.size(), &mDelays, &mWidth, &mHeight, &mFrames, &mChannels, mChannels);
+			mPixels = stbi_load_gif_from_memory((unsigned char*)buffer.c_str(), static_cast<int>(buffer.size()), &mDelays, &mWidth, &mHeight, &mFrames, &mChannels, mChannels);
 			BuildColorTable();
 		}
 		else
@@ -389,7 +389,7 @@ namespace ASCII
 		};
 
 		resetCodeTableMap();
-		int codeSize = sCountBits(mColorTableList[frame].size()) + 1;
+		size_t codeSize = sCountBits(mColorTableList[frame].size()) + 1;
 		
 		IndexStreamGenerator indexGenerator(*this, frame);
 		
@@ -431,7 +431,7 @@ namespace ASCII
 				for (int codePos = 0; codePos < codeSize; ++codePos)
 					inBitField.push_back(indexBufferEntry->second & (0b1 << codePos));
 	
-				if (codeTableMap.size() > (1 << codeSize))
+				if (codeTableMap.size() > (static_cast<size_t>(1) << codeSize))
 					++codeSize;
 	
 				indexBuffer.clear();
@@ -471,7 +471,7 @@ namespace ASCII
 	{
 		ImageData data;
 		data.mLZW = sCountBits(mColorTableList[frame].size());
-		int remainingSize = bitField.num_blocks();
+		int remainingSize = static_cast<int>(bitField.num_blocks());
 		int subBlocksBytesRead = 0;
 		do
 		{

@@ -82,13 +82,13 @@ private:
 	class IndexStreamGenerator final
 	{
 	public:
-		IndexStreamGenerator(const Image& inImage, int inFrame);
+		IndexStreamGenerator(const Image& inImage, size_t inFrame);
 
 		bool Next(uint8_t& outNext);
 
 	private:
 		const Image&	mImage;
-		const int		mFrame;
+		const size_t	mFrame;
 		size_t			mCurrentIndex = 0;
 	};
 	
