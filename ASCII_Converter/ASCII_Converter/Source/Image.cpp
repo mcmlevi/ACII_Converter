@@ -397,14 +397,14 @@ namespace ASCII
 		for (int codePos = 0; codePos < codeSize; ++codePos)
 			inBitField.push_back(clearClode & (0b1 << codePos));
 		
-		size_t previousIndexBufferHash = 0;
+		size_t previousIndexBufferHash = sHash(indexBuffer, 0, indexBuffer.size(), 0);
 		while(indexGenerator.Next(currentIndexStreamItem))
 		{
 			const int K = currentIndexStreamItem;
 	
-			size_t startOffset = previousIndexBufferHash == 0 ? 0 : indexBuffer.size();
+			const size_t startOffset = indexBuffer.size();
 			
-			indexBuffer.push_back(K);
+			indexBuffer.emplace_back(K);
 
 			size_t indexBufferPlusKHash = sHash(indexBuffer, startOffset, indexBuffer.size(), previousIndexBufferHash);
 
@@ -420,8 +420,6 @@ namespace ASCII
 				auto it = codeTableMap.insert({ indexBufferPlusKHash, (int)codeTableMap.size()});
 				
 				auto indexBufferEntry = codeTableMap.find(indexBufferHash);
-				//if (indexBufferEntry == codeTableMap.end())
-				//	codeTableMap[indexBufferHash] = (int)codeTableMap.size();
 
 				assert(indexBufferEntry != codeTableMap.end() && "Entry not found");
 				for (int codePos = 0; codePos < codeSize; ++codePos)
@@ -431,8 +429,8 @@ namespace ASCII
 					++codeSize;
 	
 				indexBuffer.clear();
-				previousIndexBufferHash = 0;
-				indexBuffer.push_back(K);
+				indexBuffer.emplace_back(K);
+				previousIndexBufferHash = sHash(indexBuffer, 0, indexBuffer.size(), 0);
 	
 				const int maxCodeSize = 12;
 				if (codeSize == maxCodeSize)
