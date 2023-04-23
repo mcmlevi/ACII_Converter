@@ -456,8 +456,8 @@ namespace ASCII
 		for (int codePos = 0; codePos < codeSize; ++codePos)
 			inBitField.push_back(EOICode & (0b1 << codePos));
 	
-		int remainder{ inBitField.size() % 8 };
-		for (int i = 0; i < 8 - remainder; ++i)
+		size_t remainder{ inBitField.size() % 8 };
+		for (size_t i = 0; i < 8 - remainder; ++i)
 			inBitField.push_back(0);
 	}
 	
