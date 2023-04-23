@@ -6,6 +6,9 @@ namespace ASCII
 	{
 	public:
 		Application();
+
+		void InitializeTable();
+
 		~Application() = default;
 
 	private:
