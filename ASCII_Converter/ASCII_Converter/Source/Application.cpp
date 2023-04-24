@@ -36,6 +36,21 @@ struct Sample
 	uint8_t sampleIndex;
 };
 
+void Blit(const std::bitset<256>& bitset, uint8_t* buffer, Color color, size_t index, int width)
+{
+	for (int y = 0; y < 16; ++y)
+	{
+		for (int x = 0; x < 16; ++x)
+		{
+			size_t globalIndex = index + (x + y * width) * 3;
+			uint32_t should = bitset.test(x + y * 16);
+			buffer[globalIndex + 0] = color[0] * should;
+			buffer[globalIndex + 1] = color[1] * should;
+			buffer[globalIndex + 2] = color[2] * should;
+		}
+	}
+}
+
 namespace ASCII
 {
 
@@ -47,7 +62,7 @@ namespace ASCII
 		Image gif("Assets/nyan-cat.gif");
 		int FramesToRender = gif.GetFrames();
 
-		Image exportImage(gif.GetWidth() * ASCIISize, gif.GetHeight() * ASCIISize, Image::EChannels::RGBA, FramesToRender);
+		Image exportImage(gif.GetWidth() * ASCIISize, gif.GetHeight() * ASCIISize, Image::EChannels::RGB, FramesToRender);
 		exportImage.SetDelays(gif.GetDelays(), FramesToRender);
 
 		uint8_t* buffer = exportImage.GetBuffer();
@@ -56,40 +71,29 @@ namespace ASCII
 
 		const float bucketInverse = 1.0f / (255.f / static_cast<float>(scale.size()));
 		auto sampleCache = std::vector<Sample>(gif.GetWidth());
+
+		const size_t bytesPerFrame = exportImage.GetHeight() * exportImage.GetChannels() * exportImage.GetWidth();
+		std::atomic<int> jobCounter{};
 		for (int frame = 0; frame < FramesToRender; frame++)
 		{
-			const auto sample = [frame, &gif](int x, int y) -> Color {
 
-				const size_t index = ((y + frame * gif.GetHeight()) * gif.GetWidth() + x) * gif.GetChannels();
-				return { gif.GetBuffer()[index], gif.GetBuffer()[index + 1], gif.GetBuffer()[index + 2] };
-			};
-
-			for (int y = 0; y < exportImage.GetHeight(); y++)
+			JobSystem::Execute([&, frame]()
 			{
-				if (y % ASCIISize == 0)
+				for (int y = 0; y < gif.GetHeight(); y++)
 				{
 					for (int x = 0; x < gif.GetWidth(); ++x)
 					{
-						const auto c = sample(x, y / ASCIISize);
-						sampleCache[x] = { .color = 255 << 24 | c[2] << 16 | c[1] << 8 | c[0] , .sampleIndex = static_cast<uint8_t>(Luminance(c[0], c[1], c[2]) * bucketInverse)};
+						const size_t index = ((y + frame * gif.GetHeight()) * gif.GetWidth() + x) * gif.GetChannels();
+						Color c = { gif.GetBuffer()[index], gif.GetBuffer()[index + 1], gif.GetBuffer()[index + 2] };
+						uint8_t sampleIndex = static_cast<uint8_t>(Luminance(c[0], c[1], c[2]) * bucketInverse);
+						Blit(ascii_bits[sampleIndex], exportImage.GetBuffer(), c, (x * 16 + y * 16 * exportImage.GetWidth()) * exportImage.GetChannels() + frame * bytesPerFrame, exportImage.GetWidth());
 					}
 				}
+			}, &jobCounter);
 
-				for (int x = 0; x < exportImage.GetWidth(); x += 16)
-				{
-					const auto& sample = sampleCache[x / ASCIISize];
-					for (int x2 = 0 ; x2 < ASCIISize ; ++x2)
-					{
-						const uint8_t isVisible = ascii_bits[sample.sampleIndex].test(((x + x2) % ASCIISize) + (y % ASCIISize) * ASCIISize);
-						const int index = (((y + frame * exportImage.GetHeight()) * exportImage.GetWidth()) + x + x2) * exportImage.GetChannels();
-						uint32_t mask = GetMask(isVisible);
-						uint32_t result = sample.color & mask;
-						memcpy(buffer + index, &result, 4);
-					}					
-				}
-			}
+			
 		}
-		
+		JobSystem::Wait(&jobCounter);
 		exportImage.SetColorTableFromImage(gif);
 		exportImage.ExportImage("Output/test.gif", Image::ExportAs::GIF, 100);
 	};

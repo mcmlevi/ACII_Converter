@@ -16,6 +16,10 @@
 #include <iostream>
 #include <algorithm>
 
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+
 namespace ASCII 
 {
 	size_t sHash(const std::vector<uint8_t>& inVecToHash, size_t inStart, size_t inEnd, size_t initialHash = 0)
@@ -203,12 +207,13 @@ namespace ASCII
 		mHeight(inHeight),
 		mFrames(inFrames)
 	{
-		mPixels = static_cast<uint8_t*>(malloc(sizeof(uint8_t) * mChannels * (mHeight * inFrames) * mWidth));
+		mPixels = new uint8_t[sizeof(uint8_t) * mChannels * (mHeight * inFrames) * mWidth];
+		VirtualLock(mPixels, sizeof(uint8_t)* mChannels* (mHeight* inFrames)* mWidth);
 	}
 	
 	Image::~Image()
 	{
-		free(mPixels);
+		delete[] mPixels;
 		if (mDelays)
 			delete[] mDelays;
 	}
