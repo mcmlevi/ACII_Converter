@@ -7,7 +7,9 @@
 #include <array>
 
 const std::string scale = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'.";
+
 std::array<std::bitset<256>, 69> ascii_bits;
+
 [[nodiscard]] float Luminance(uint8_t* pixel)
 {
 	return (pixel[0] * 0.3f) + (pixel[1] * 0.59f) + (pixel[2] * 0.11f);
@@ -101,7 +103,6 @@ namespace ASCII
 	void Application::InitializeTable()
 	{
 		const int32_t ASCIISize = 16;
-		const uint8_t black_color[3]{ 0, 0, 0 };
 		for (int i = 0; i < scale.size(); ++i)
 		{
 			const char character = scale[i];

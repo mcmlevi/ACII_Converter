@@ -485,18 +485,17 @@ namespace ASCII
 				data.mBlocks.push_back(std::move(block2));
 				break;
 			}
+
 			ImageData::SubBlock block;
 			block.mBytes = 0xFF;
-	
-			for (int i = 0; i < 0xFF; ++i)
-			{
-				block.mData.push_back(*(bitField.data() + i + subBlocksBytesRead));
-			}
+			block.mData.resize(0xFF);
+			memcpy(block.mData.data(), bitField.data() + subBlocksBytesRead, 0xFF);
 			data.mBlocks.push_back(std::move(block));
 	
 			remainingSize -= 0xFF;
 			subBlocksBytesRead += 0xFF;
 		} while (remainingSize > 0);
+		
 		outfile << data;
 	}
 
